@@ -21,7 +21,9 @@
             justify-content: center;
             align-items: center;
             height: 60%;
-            width: 60%; /* Reduce the width by 30% */
+            width: 90%; /* Adjust width for mobile responsiveness */
+            max-width: 600px; /* Max width for larger screens */
+            padding: 10px; /* Padding to avoid screen edges on small devices */
         }
         .card {
             background: rgba(255, 255, 255, 0.3);
@@ -33,6 +35,7 @@
             animation: fadeIn 1s ease-in-out;
             transition: transform 0.2s;
             width: 100%;
+            overflow: hidden;
         }
         .card:hover {
             transform: scale(1.02);
@@ -154,9 +157,63 @@
         .tooltip:hover .tooltiptext {
             visibility: visible;
         }
+
+        /* Checklist button styles */
+        .button {
+            margin: 0;
+            height: auto;
+            background: transparent;
+            padding: 0;
+            border: none;
+            cursor: pointer;
+        }
+        .button {
+            --border-right: 6px;
+            --text-stroke-color: rgba(255, 255, 255, 0.6);
+            --animation-color: #37FF8B;
+            --fs-size: 2em;
+            letter-spacing: 3px;
+            text-decoration: none;
+            font-size: var(--fs-size);
+            font-family: "Arial";
+            position: relative;
+            text-transform: uppercase;
+            color: transparent;
+            -webkit-text-stroke: 1px var(--text-stroke-color);
+        }
+        .hover-text {
+            position: absolute;
+            box-sizing: border-box;
+            content: attr(data-text);
+            color: var(--animation-color);
+            width: 0%;
+            inset: 0;
+            border-right: var(--border-right) solid var(--animation-color);
+            overflow: hidden;
+            transition: 0.5s;
+            -webkit-text-stroke: 1px var(--animation-color);
+        }
+        .button:hover .hover-text {
+            width: 100%;
+            filter: drop-shadow(0 0 23px var(--animation-color));
+        }
+        .fixed-header {
+            position: fixed;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+            margin-top: 10px;
+        }
     </style>
 </head>
 <body>
+    <div class="fixed-header">
+        <button class="button" data-text="Awesome">
+            <span class="actual-text">&nbsp;Checklist&nbsp;</span>
+            <span aria-hidden="true" class="hover-text">&nbsp;Checklist&nbsp;</span>
+        </button>
+    </div>
     <div class="container">
         <div class="card">
             <h1>To-Do List</h1>
@@ -193,7 +250,7 @@
         // Load saved task states from localStorage when the page loads
         document.addEventListener('DOMContentLoaded', function() {
             const taskBody = document.getElementById('taskBody');
-            initialTasks.forEach((task, index) => {
+            loadTasksFromStorage().forEach((task, index) => {
                 const taskIdPrefix = `task${index + 1}`;
                 const row = createTaskRow(taskIdPrefix, task);
                 taskBody.appendChild(row);
@@ -201,6 +258,15 @@
 
             loadTaskStates();
         });
+
+        function loadTasksFromStorage() {
+            const tasks = JSON.parse(localStorage.getItem('tasks')) || initialTasks;
+            return tasks;
+        }
+
+        function saveTasksToStorage(tasks) {
+            localStorage.setItem('tasks', JSON.stringify(tasks));
+        }
 
         function createTaskRow(taskIdPrefix, task) {
             const row = document.createElement('tr');
@@ -213,7 +279,7 @@
                 <td><button class="complete-btn" onclick="toggleTask(this, '${taskIdPrefix}-Friday')">-</button></td>
                 <td>
                     <div class="tooltip">
-                        <button onclick="deleteTask(this)">
+                        <button onclick="deleteTask(this, '${taskIdPrefix}')">
                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 20" height="25" width="25">
                                 <path fill="#6361D9" d="M8.78842 5.03866C8.86656 4.96052 8.97254 4.91663 9.08305 4.91663H11.4164C11.5269 4.91663 11.6329 4.96052 11.711 5.03866C11.7892 5.11681 11.833 5.22279 11.833 5.33329V5.74939H8.66638V5.33329C8.66638 5.22279 8.71028 5.11681 8.78842 5.03866ZM7.16638 5.74939V5.33329C7.16638 4.82496 7.36832 4.33884 7.72765 3.97951C8.08697 3.62018 8.5731 3.41663 9.08305 3.41663H11.4164C11.9264 3.41663 12.4125 3.62018 12.7718 3.97951C13.1312 4.33884 13.333 4.82496 13.333 5.33329V5.74939H14.833V7.24939H14.2426L13.613 15.411C13.5841 15.8007 13.4076 16.1611 13.1211 16.4206C12.8347 16.6802 12.458 16.8217 12.0684 16.8217H8.43105C8.04139 16.8217 7.66471 16.6802 7.37827 16.4206C7.09183 16.1611 6.91531 15.8007 6.88638 15.411L6.25672 7.24939H5.66638V5.74939H7.16638ZM7.77069 15.3333C7.77448 15.3847 7.79861 15.4326 7.83797 15.4679C7.87732 15.5031 7.92878 15.5226 7.982 15.5217H12.5174C12.5707 15.5226 12.6221 15.5031 12.6615 15.4679C12.7008 15.4326 12.725 15.3847 12.7288 15.3333L13.344 7.24939H7.15544L7.77069 15.3333Z" />
                             </svg>
@@ -254,13 +320,25 @@
                 const taskIdPrefix = `task${taskBody.rows.length + 1}`;
                 const row = createTaskRow(taskIdPrefix, newTask);
                 taskBody.appendChild(row);
+
+                // Save new task to localStorage
+                const tasks = loadTasksFromStorage();
+                tasks.push(newTask);
+                saveTasksToStorage(tasks);
             }
         }
 
-        function deleteTask(button) {
+        function deleteTask(button, taskIdPrefix) {
             const row = button.closest('tr');
             row.remove();
-            // Optionally, you can add code here to remove the task from localStorage if needed.
+
+            // Optionally, remove the task from localStorage
+            const tasks = loadTasksFromStorage();
+            const taskIndex = tasks.findIndex(task => task.startsWith(taskIdPrefix.replace(/task\d+-/, '')));
+            if (taskIndex !== -1) {
+                tasks.splice(taskIndex, 1);
+                saveTasksToStorage(tasks);
+            }
         }
     </script>
 </body>
